@@ -20,9 +20,28 @@ class Monitor {
     this.eventRelay = new EventEmitter()
     this.lastResponse = {}
     this.timeLastWanted = {}
+    this.stopping = false
+    this.running = []
   }
 
+  stop () {
+    return new Promise(resolve => {
+      this.stopping = true
+      debug('stopping')
+      const check = () => {
+        debug('are we stopped?  runners = %j', this.running)
+        if (this.running.length === 0) {
+          debug('stopped')
+          resolve()
+        }
+      }
+      check()
+      this.eventRelay.on('runner-stopped', check)
+    })
+  }
+  
   async got (url) {
+    if (this.stopping) throw Error('already stopping')
     let response = this.lastResponse[url]
     if (!response) {
       debug('booting', url)
@@ -56,6 +75,7 @@ class Monitor {
 
   async run (url) {
     let me = counter++
+    this.running.push(me)
     let extra = 0
     debug('runner %d starting for %s', me, url)
     let lastFetchEnded = 0
@@ -79,10 +99,12 @@ class Monitor {
       // only sleep a little while, so we can be awaked
       await delay(100)
 
-      if (unwanted > 1000 * 1 * 5) {
-        debug('runner %d expiring, url not wanted recently', me)
+      if (this.stopping || unwanted > 1000 * 1 * 5) {
+        debug('runner %d stopping or expiring, url not wanted recently', me)
         delete this.timeLastWanted[url]
         delete this.lastResponse[url]
+        this.running = this.running.filter(x => (x !== me))
+        this.eventRelay.emit('runner-stopped')
         return
       }
     }

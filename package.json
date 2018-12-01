@@ -26,5 +26,8 @@
     "debug": "^4.1.0",
     "delay": "^4.1.0",
     "got": "^9.3.2"
+  },
+  "devDependencies": {
+    "tape": "^4.9.1"
   }
 }
