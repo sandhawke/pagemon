@@ -24,6 +24,7 @@ test(async (t) => {
     t.equal(g1.body, msg)
     const t1 = new Date()
     const dur = t1 - t0
+    debug('duration=%dms', dur)
     return dur
   }
 
@@ -32,7 +33,12 @@ test(async (t) => {
   t.assert(d1 < 1500)
   const d2 = await run()
   t.assert(d2 < 100)
+
+  // actually, it's not just fast, it's synchronous:
+  let ticks = 0
+  process.nextTick(() => { ticks++ })
   const d3 = await run()
+  t.equal(ticks, 0)
   t.assert(d3 < 100)
 
   t.equal(slowCalled, 1)

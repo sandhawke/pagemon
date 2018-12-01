@@ -5,10 +5,9 @@ const debug = require('debug')('pagemon')
 
 /*
 
-  clean up by:
-
   - switch to cancelable delay()
-  - switch to this.page[url] = { timeLastWanted, lastResponse, ... }
+
+  - let the timing parameters be config options
 
 */
 
@@ -18,8 +17,9 @@ let counter = 0
 class Monitor {
   constructor () {
     this.eventRelay = new EventEmitter()
-    this.lastResponse = {}
-    this.timeLastWanted = {}
+    this.page = {}
+    // this.lastResponse = {}
+    // this.timeLastWanted = {}
     this.stopping = false
     this.running = []
   }
@@ -42,22 +42,23 @@ class Monitor {
   
   async got (url) {
     if (this.stopping) throw Error('already stopping')
-    let response = this.lastResponse[url]
-    if (!response) {
-      debug('booting', url)
-      await this.booting(url)
-      response = this.lastResponse[url]
-      debug('booting complete', url)
-    } else {
-      this.timeLastWanted[url] = new Date()
+
+    let page = this.page[url]
+    if (page && page.lastResponse) {
+      page.timeLastWanted = new Date()
+      return page.lastResponse
     }
-    return response
+    
+    debug('booting', url)
+    await this.booting(url)
+    debug('booting complete', url)
+    return this.page[url].lastResponse
   }
 
   booting (url) {
-    debug('booting, with %O', this.timeLastWanted)
-    const start = !this.timeLastWanted[url]
-    this.timeLastWanted[url] = new Date()
+    if (!this.page[url]) this.page[url] = {}
+    const start = !this.page[url].timeLastWanted
+    this.page[url].timeLastWanted = new Date()
     if (start) {
       debug('calling this.run(%j)', url)
       this.run(url)
@@ -87,13 +88,13 @@ class Monitor {
       if (unfetched >= delayms) {
         debug('runner %d fetching, unfetched %d >= delayms %d', me, unfetched, delayms)
         console.log('actually fetching', url)
-        this.lastResponse[url] = await got(url)
+        this.page[url].lastResponse = await got(url)
         debug('runner %d got resolved', me)
         this.eventRelay.emit('got', url)
         now = new Date()
         lastFetchEnded = now
       }
-      const unwanted = now - this.timeLastWanted[url]
+      const unwanted = now - this.page[url].timeLastWanted
       delayms = 1000 + (unwanted / 10)
       debug('runner %d, delayms set to %dms', me, delayms)
       // only sleep a little while, so we can be awaked
@@ -101,8 +102,7 @@ class Monitor {
 
       if (this.stopping || unwanted > 1000 * 1 * 5) {
         debug('runner %d stopping or expiring, url not wanted recently', me)
-        delete this.timeLastWanted[url]
-        delete this.lastResponse[url]
+        delete this.page[url]
         this.running = this.running.filter(x => (x !== me))
         this.eventRelay.emit('runner-stopped')
         return
