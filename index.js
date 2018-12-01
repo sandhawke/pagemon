@@ -18,8 +18,11 @@ class Monitor {
   constructor () {
     this.eventRelay = new EventEmitter()
     this.page = {}
-    // this.lastResponse = {}
-    // this.timeLastWanted = {}
+    // each page has
+    //   .lastResponse =  what got() resolved to
+    //   .timeLastWanted = the time mon.got() was last called on it
+    //   .waiting  = list of functions to call 
+
     this.stopping = false
     this.running = []
   }
@@ -71,6 +74,9 @@ class Monitor {
     })
   }
 
+  // we only have one runner per url, because we want our timing
+  // loop to be sleeping after the run completes, not after it starts,
+  // so we slow down better if things get slow
   async run (url) {
     let me = counter++
     this.running.push(me)
@@ -87,8 +93,11 @@ class Monitor {
         console.log('actually fetching', url)
         this.page[url].lastResponse = await got(url)
         debug('runner %d got resolved', me)
-        // call all the resolve() functions that are waiting
-        this.page[url].waiting.map(x => x())
+        while (true) {
+          const f = this.page[url].waiting.shift()
+          if (!f) break
+          f()
+        }
         now = new Date()
         lastFetchEnded = now
       }
