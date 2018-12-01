@@ -50,27 +50,24 @@ class Monitor {
     }
     
     debug('booting', url)
-    await this.booting(url)
+    await this.waitForResponse(url)
     debug('booting complete', url)
     return this.page[url].lastResponse
   }
 
-  booting (url) {
-    if (!this.page[url]) this.page[url] = {}
-    const start = !this.page[url].timeLastWanted
-    this.page[url].timeLastWanted = new Date()
-    if (start) {
-      debug('calling this.run(%j)', url)
-      this.run(url)
-    }
+  waitForResponse (url) {
     return new Promise(resolve => {
-      const listener = (eventURL) => {
-        if (url === eventURL) {
-          this.eventRelay.removeListener('got', listener)
-          resolve()
-        }
+      if (!this.page[url]) this.page[url] = {
+        waiting: []
       }
-      this.eventRelay.on('got', listener)
+      this.page[url].waiting.push(resolve)
+
+      const start = !this.page[url].timeLastWanted
+      this.page[url].timeLastWanted = new Date()
+      if (start) {
+        debug('calling this.run(%j)', url)
+        this.run(url)
+      }
     })
   }
 
@@ -90,7 +87,8 @@ class Monitor {
         console.log('actually fetching', url)
         this.page[url].lastResponse = await got(url)
         debug('runner %d got resolved', me)
-        this.eventRelay.emit('got', url)
+        // call all the resolve() functions that are waiting
+        this.page[url].waiting.map(x => x())
         now = new Date()
         lastFetchEnded = now
       }
