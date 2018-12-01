@@ -1,0 +1,30 @@
+{
+  "name": "pagemon",
+  "version": "0.0.1",
+  "description": "Monitor one or more web pages for changes, keeping a local copy",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap --cov test*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandhawke/pagemon.git"
+  },
+  "keywords": [
+    "web",
+    "cache",
+    "memoize",
+    "got"
+  ],
+  "author": "Sandro Hawke (http://hawke.org/sandro)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sandhawke/pagemon/issues"
+  },
+  "homepage": "https://github.com/sandhawke/pagemon#readme",
+  "dependencies": {
+    "debug": "^4.1.0",
+    "delay": "^4.1.0",
+    "got": "^9.3.2"
+  }
+}
